@@ -1,11 +1,19 @@
-from random import randint
-from src.utils import generateNewValue
+from random import randint, random, shuffle
 
 
+def generateARandomPermutation(n):
+    perm = [i for i in range(n)]
+    pos1 = randint(0, n - 1)
+    pos2 = randint(0, n - 1)
+    perm[pos1], perm[pos2] = perm[pos2], perm[pos1]
+    return perm
+
+
+# permutation-based representation
 class Chromosome:
     def __init__(self, problParam=None):
-        self.__problParam = problParam
-        self.__repres = [generateNewValue(problParam['min'], problParam['max']) ]
+        self.__problParam = problParam  # problParam has to store the number of nodes/cities
+        self.__repres = generateARandomPermutation(self.__problParam['popSize'])
         self.__fitness = 0.0
 
     @property
@@ -17,30 +25,45 @@ class Chromosome:
         return self.__fitness
 
     @repres.setter
-    def repres(self, l):
+    def repres(self, l=[]):
         self.__repres = l
 
     @fitness.setter
-    def fitness(self, fit):
+    def fitness(self, fit=0.0):
         self.__fitness = fit
 
     def crossover(self, c):
-        r = randint(0, len(self.__repres) - 1)
-        newrepres = []
-        for i in range(r):
-            newrepres.append(self.__repres[i])
-        for i in range(r, len(self.__repres)):
-            newrepres.append(c.__repres[i])
-        offspring = Chromosome(c.__problParam)
+        # order XO
+        pos1 = randint(-1, self.__problParam['popSize'] - 1)
+        pos2 = randint(-1, self.__problParam['popSize'] - 1)
+        if (pos2 < pos1):
+            pos1, pos2 = pos2, pos1
+        k = 0
+        newrepres = self.__repres[pos1: pos2]
+        for el in c.__repres[pos2:] + c.__repres[:pos2]:
+            if (el not in newrepres):
+                if (len(newrepres) < self.__problParam['popSize'] - pos1):
+                    newrepres.append(el)
+                else:
+                    newrepres.insert(k, el)
+                    k += 1
+
+        offspring = Chromosome(self.__problParam)
         offspring.repres = newrepres
         return offspring
 
     def mutation(self):
-        pos = randint(0, len(self.__repres) - 1)
-        self.__repres[pos] = generateNewValue(self.__problParam['min'], self.__problParam['max'])
+        # insert mutation
+        pos1 = randint(0, self.__problParam['popSize'] - 1)
+        pos2 = randint(0, self.__problParam['popSize'] - 1)
+        if (pos2 < pos1):
+            pos1, pos2 = pos2, pos1
+        el = self.__repres[pos2]
+        del self.__repres[pos2]
+        self.__repres.insert(pos1 + 1, el)
 
     def __str__(self):
-        return '\nChromo: ' + str(self.__repres) + ' has fit: ' + str(self.__fitness)
+        return "\nChromo: " + str(self.__repres) + " has fit: " + str(self.__fitness)
 
     def __repr__(self):
         return self.__str__()
@@ -66,12 +89,12 @@ class GA:
 
     def evaluation(self):
         for c in self.__population:
-            print(c.repres)
             c.fitness = self.__problParam['function'](c.repres)
 
     def bestChromosome(self):
         best = self.__population[0]
         for c in self.__population:
+            print(c.fitness)
             if (c.fitness < best.fitness):
                 best = c
         return best
@@ -84,12 +107,16 @@ class GA:
         return best
 
     def selection(self):
-        pos1 = randint(0, self.__param['popSize'] - 1)
-        pos2 = randint(0, self.__param['popSize'] - 1)
-        if (self.__population[pos1].fitness < self.__population[pos2].fitness):
-            return pos1
-        else:
-            return pos2
+        copyPopulation = self.__population
+        #sorted(copyPopulation, key=lambda x : x.fitness, reverse=True)
+        lim = len(copyPopulation)*15//100
+        maxx = 1000000
+        idx = 0
+        for i in range(lim):
+            if copyPopulation[i].fitness < maxx:
+                maxx = copyPopulation[i].fitness
+                idx = i
+        return idx
 
     def oneGeneration(self):
         newPop = []
@@ -123,3 +150,4 @@ class GA:
             worst = self.worstChromosome()
             if (off.fitness < worst.fitness):
                 worst = off
+
